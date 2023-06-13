@@ -7,6 +7,10 @@ docker:
 build_docker: 
 	docker build -t ${DOCKER_NAME} .
 
+bash:
+	docker start rcore-tutorial
+	docker exec -it rcore-tutorial bash
+
 fmt:
 	cd os ; cargo fmt;  cd ..
 

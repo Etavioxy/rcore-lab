@@ -5,9 +5,9 @@
 #[macro_use]
 extern crate user_lib;
 
-use user_lib::{exit, fork, get_time, getpid, wait, yield_};
+use user_lib::{exit, fork_with_priority, get_time, getpid, wait, yield_};
 
-static NUM: usize = 30;
+static NUM: usize = 20;
 const N: usize = 10;
 static P: i32 = 10007;
 type Arr = [[i32; N]; N];
@@ -24,7 +24,7 @@ fn work(times: isize) {
     }
     yield_();
     println!("pid {} is running ({} times)!.", getpid(), times);
-    for _ in 0..times {
+    for t in 0..times {
         for i in 0..N {
             for j in 0..N {
                 c[i][j] = 0;
@@ -40,6 +40,9 @@ fn work(times: isize) {
                 b[i][j] = c[i][j];
             }
         }
+        if t % 1000 == 0 {
+            println!("pid {} run {} times!.", getpid(), t);
+        }
     }
     println!("pid {} done!.", getpid());
     exit(0);
@@ -48,10 +51,10 @@ fn work(times: isize) {
 #[no_mangle]
 pub fn main() -> i32 {
     for _ in 0..NUM {
-        let pid = fork();
+        let current_time = get_time();
+        let times = (current_time as i32 as isize) * (current_time as i32 as isize) % 2000;
+        let pid = fork_with_priority((times/100+4) as u32);
         if pid == 0 {
-            let current_time = get_time();
-            let times = (current_time as i32 as isize) * (current_time as i32 as isize) % 1000;
             work(times * 10);
         }
     }

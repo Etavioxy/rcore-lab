@@ -47,6 +47,7 @@ pub fn suspend_current_and_run_next() {
     let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
     // Change status to Ready
     task_inner.task_status = TaskStatus::Ready;
+    task_inner.pr.stride += task_inner.pr.pass;
     drop(task_inner);
     // ---- release current PCB
 
@@ -81,6 +82,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     // **** access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
+    println!("[EXIT] task pid {} priority {} time {} index {}", task.getpid(), inner.pr.priority, inner.pr.stride / inner.pr.pass, (inner.pr.stride / inner.pr.pass) *1000 / inner.pr.priority);
     // Change status to Zombie
     inner.task_status = TaskStatus::Zombie;
     // Record exit code

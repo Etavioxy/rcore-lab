@@ -58,7 +58,10 @@ pub fn getpid() -> isize {
     sys_getpid()
 }
 pub fn fork() -> isize {
-    sys_fork()
+    sys_fork(0)
+}
+pub fn fork_with_priority(priority: u32) -> isize {
+    sys_fork(priority)
 }
 pub fn exec(path: &str) -> isize {
     sys_exec(path)

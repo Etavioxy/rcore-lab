@@ -25,9 +25,14 @@ pub fn sys_getpid() -> isize {
     current_task().unwrap().pid.0 as isize
 }
 
-pub fn sys_fork() -> isize {
+pub fn sys_fork(priority: u32) -> isize {
     let current_task = current_task().unwrap();
-    let new_task = current_task.fork();
+    let pr = if priority != 0 {
+        priority
+    } else {
+        current_task.inner_exclusive_access().pr.priority
+    };
+    let new_task = current_task.fork(pr);
     let new_pid = new_task.pid.0;
     // modify trap context of new_task, because it returns immediately after switching
     let trap_cx = new_task.inner_exclusive_access().get_trap_cx();

@@ -7,7 +7,47 @@ use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use core::cmp::Ordering;
 use core::cell::RefMut;
+
+const STRIDE_BASE: u32 = 100000000;
+
+#[derive(Clone)]
+pub struct Priority {
+    pub priority: u32,
+    pub stride: u32,
+    pub pass: u32,
+}
+
+impl Priority {
+    pub fn new(priority: u32) -> Self {
+        Self {
+            priority,
+            stride: 0,
+            pass: STRIDE_BASE / priority,
+        }
+    }
+}
+
+impl PartialEq for Priority {
+    fn eq(&self, other: &Self) -> bool {
+        self.stride == other.stride
+    }
+}
+
+impl Eq for Priority {}
+
+impl PartialOrd for Priority {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Priority {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.stride.cmp(&self.stride)
+    }
+}
 
 pub struct TaskControlBlock {
     // immutable
@@ -17,7 +57,28 @@ pub struct TaskControlBlock {
     inner: UPSafeCell<TaskControlBlockInner>,
 }
 
+impl PartialEq for TaskControlBlock {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner_exclusive_access().pr.eq(&other.inner_exclusive_access().pr)
+    }
+}
+
+impl Eq for TaskControlBlock {}
+
+impl PartialOrd for TaskControlBlock {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.inner_exclusive_access().pr.cmp(&other.inner_exclusive_access().pr))
+    }
+}
+
+impl Ord for TaskControlBlock {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.inner_exclusive_access().pr.cmp(&other.inner_exclusive_access().pr)
+    }
+}
+
 pub struct TaskControlBlockInner {
+    pub pr: Priority,
     pub trap_cx_ppn: PhysPageNum,
     pub base_size: usize,
     pub task_cx: TaskContext,
@@ -69,6 +130,7 @@ impl TaskControlBlock {
             kernel_stack,
             inner: unsafe {
                 UPSafeCell::new(TaskControlBlockInner {
+                    pr: Priority::new(2),
                     trap_cx_ppn,
                     base_size: user_sp,
                     task_cx: TaskContext::goto_trap_return(kernel_stack_top),
@@ -118,7 +180,7 @@ impl TaskControlBlock {
         );
         // **** release inner automatically
     }
-    pub fn fork(self: &Arc<Self>) -> Arc<Self> {
+    pub fn fork(self: &Arc<Self>, priority: u32) -> Arc<Self> {
         // ---- access parent PCB exclusively
         let mut parent_inner = self.inner_exclusive_access();
         // copy user space(include trap context)
@@ -136,6 +198,7 @@ impl TaskControlBlock {
             kernel_stack,
             inner: unsafe {
                 UPSafeCell::new(TaskControlBlockInner {
+                    pr: Priority::new(priority),
                     trap_cx_ppn,
                     base_size: parent_inner.base_size,
                     task_cx: TaskContext::goto_trap_return(kernel_stack_top),

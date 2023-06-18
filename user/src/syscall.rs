@@ -52,8 +52,8 @@ pub fn sys_getpid() -> isize {
     syscall(SYSCALL_GETPID, [0, 0, 0])
 }
 
-pub fn sys_fork() -> isize {
-    syscall(SYSCALL_FORK, [0, 0, 0])
+pub fn sys_fork(priority: u32) -> isize {
+    syscall(SYSCALL_FORK, [priority as usize, 0, 0])
 }
 
 pub fn sys_exec(path: &str) -> isize {
